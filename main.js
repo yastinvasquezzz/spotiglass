@@ -1,7 +1,21 @@
 const { app, BrowserWindow, ipcMain, screen, Tray, Menu, nativeImage, shell } = require('electron');
 const path = require('path');
+const exec = require('child_process').exec;
 const Store = require('electron-store');
 const SpotifyAuth = require('./auth');
+
+// Single Instance Lock: Garantiza que NUNCA se pueda abrir más de 1 instancia de SpotiGlass
+const gotTheLock = app.requestSingleInstanceLock();
+
+if (!gotTheLock) {
+  app.quit();
+} else {
+  app.on('second-instance', () => {
+    if (mainWindow) {
+      showWindow();
+    }
+  });
+}
 
 const store = new Store();
 const spotifyAuth = new SpotifyAuth(store);
@@ -12,6 +26,7 @@ let isDocked = false;
 let isMovingLock = false;
 let userIntentionalMinimize = false;
 let isLyricsModeActive = false;
+let isFullscreenDetected = false;
 
 function createWindow() {
   const appIconPath = path.join(__dirname, 'icon.png');
@@ -47,7 +62,7 @@ function createWindow() {
   mainWindow.loadFile('index.html');
 
   mainWindow.on('blur', () => {
-    if (mainWindow && !mainWindow.isDestroyed() && !userIntentionalMinimize) {
+    if (mainWindow && !mainWindow.isDestroyed() && !userIntentionalMinimize && !isFullscreenDetected) {
       mainWindow.setAlwaysOnTop(true, 'screen-saver', 1);
       mainWindow.showInactive();
     }
@@ -57,7 +72,7 @@ function createWindow() {
     if (!userIntentionalMinimize) {
       event.preventDefault();
       setTimeout(() => {
-        if (mainWindow && !mainWindow.isDestroyed()) {
+        if (mainWindow && !mainWindow.isDestroyed() && !isFullscreenDetected) {
           mainWindow.restore();
           mainWindow.showInactive();
           mainWindow.setAlwaysOnTop(true, 'screen-saver', 1);
@@ -70,10 +85,10 @@ function createWindow() {
   });
 
   mainWindow.on('hide', (event) => {
-    if (!userIntentionalMinimize) {
+    if (!userIntentionalMinimize && !isFullscreenDetected) {
       event.preventDefault();
       setTimeout(() => {
-        if (mainWindow && !mainWindow.isDestroyed()) {
+        if (mainWindow && !mainWindow.isDestroyed() && !isFullscreenDetected) {
           mainWindow.showInactive();
           mainWindow.setAlwaysOnTop(true, 'screen-saver', 1);
         }
@@ -109,14 +124,33 @@ function createWindow() {
     mainWindow = null;
   });
 
-  setInterval(() => {
-    if (mainWindow && !mainWindow.isDestroyed() && !userIntentionalMinimize) {
-      if (!mainWindow.isVisible()) {
-        mainWindow.showInactive();
+  // Detector Ultra-Rápido de Pantalla Completa (F11, Juegos, YouTube Fullscreen, etc.)
+  setInterval(checkFullscreenMode, 1000);
+}
+
+function checkFullscreenMode() {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+
+  const psScript = `$hwnd = [Win32FS]::GetForegroundWindow(); if ($hwnd -ne [IntPtr]::Zero) { $r = New-Object Win32FS+RECT; [Win32FS]::GetWindowRect($hwnd, [ref]$r); $w = $r.Right - $r.Left; $h = $r.Bottom - $r.Top; $sw = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds.Width; $sh = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds.Height; if ($w -ge $sw -and $h -ge $sh) { 'FULLSCREEN' } else { 'NORMAL' } }`;
+
+  const cmd = `powershell -NoProfile -Command "Add-Type -TypeDefinition 'using System; using System.Runtime.InteropServices; public class Win32FS { [DllImport(\\\"user32.dll\\\")] public static extern IntPtr GetForegroundWindow(); [DllImport(\\\"user32.dll\\\")] public static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect); public struct RECT { public int Left; public int Top; public int Right; public int Bottom; } }'; ${psScript}"`;
+
+  exec(cmd, { windowsHide: true }, (err, stdout) => {
+    if (err) return;
+    const isFS = stdout && stdout.includes('FULLSCREEN');
+
+    if (isFS && !isFullscreenDetected) {
+      isFullscreenDetected = true;
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.hide();
       }
-      mainWindow.setAlwaysOnTop(true, 'screen-saver', 1);
+    } else if (!isFS && isFullscreenDetected) {
+      isFullscreenDetected = false;
+      if (mainWindow && !mainWindow.isDestroyed() && !userIntentionalMinimize) {
+        showWindow();
+      }
     }
-  }, 400);
+  });
 }
 
 function createSystemTray() {
@@ -235,16 +269,13 @@ function undockFromTaskbar() {
 }
 
 app.whenReady().then(() => {
-  // Servicio de Arranque Automático con Windows (Pestaña 'Aplicaciones de arranque' en Administrador de Tareas)
   try {
     app.setLoginItemSettings({
       openAtLogin: true,
       openAsHidden: false,
       path: app.getPath('exe')
     });
-  } catch (e) {
-    console.log('Error configurando arranque automático:', e.message);
-  }
+  } catch (e) {}
 
   createWindow();
   createSystemTray();

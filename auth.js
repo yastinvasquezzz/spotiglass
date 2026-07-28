@@ -82,7 +82,7 @@ class SpotifyAuth {
               <body>
                 <div class="card">
                   <h1>¡Sesión Iniciada con Éxito!</h1>
-                  <p>Regresando al widget flotante...</p>
+                  <p>Regresando a SpotiGlass...</p>
                 </div>
               </body>
               </html>
@@ -230,6 +230,25 @@ class SpotifyAuth {
     }
 
     return accessToken;
+  }
+
+  async togglePlayPause(currentlyPlaying) {
+    try {
+      const token = await this.getValidAccessToken();
+      if (currentlyPlaying) {
+        await axios.put('https://api.spotify.com/v1/me/player/pause', {}, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+      } else {
+        await axios.put('https://api.spotify.com/v1/me/player/play', {}, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+      }
+      return true;
+    } catch (error) {
+      console.error('Error enviando toggle play/pause a Spotify:', error.response?.data || error.message);
+      return false;
+    }
   }
 
   async getAudioFeatures(trackId) {
