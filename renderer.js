@@ -1,5 +1,6 @@
 let currentIsPlaying = false;
 let pollingInterval = null;
+let tickerInterval = null;
 let isLoggingIn = false;
 
 let currentTrackId = '';
@@ -69,19 +70,18 @@ window.spotifyAPI.onTaskbarDockStatus((data) => {
   }
 });
 
-// Reloj de Alta Precisión (50ms) para Sincronización de Letras sin Delay (0ms lag)
+// Reloj Adaptativo de Alta Precisión (Solo activo cuando las letras están visibles para ahorrar el 90% de CPU)
 function startHighPrecisionTicker() {
-  setInterval(() => {
-    if (!currentIsPlaying) return;
+  if (tickerInterval) clearInterval(tickerInterval);
+  tickerInterval = setInterval(() => {
+    if (!currentIsPlaying || !lyricsBtn.classList.contains('active')) return;
     const elapsedSinceFetch = Date.now() - lastSpotifyFetchTime;
     currentProgressMs = lastSpotifyProgressMs + elapsedSinceFetch;
-    if (lyricsBtn.classList.contains('active')) {
-      updateLyricsPosition();
-    }
+    updateLyricsPosition();
   }, 50);
 }
 
-// Asegurar que las animaciones de Lottie NUNCA se congelen al desenfocar la ventana
+// Mantener animaciones continuas sin congelar al desenfocar
 window.addEventListener('blur', () => {
   if (duckLottie && currentIsPlaying) {
     try { duckLottie.play(); } catch(e) {}
@@ -335,6 +335,7 @@ function updateColorsFromAlbumArt() {
 
   try {
     const ctx = colorCanvas.getContext('2d');
+    ctx.clearRect(0, 0, 32, 32);
     ctx.drawImage(albumArt, 0, 0, 32, 32);
     const imageData = ctx.getImageData(0, 0, 32, 32).data;
 
@@ -510,6 +511,7 @@ async function updateCurrentlyPlaying() {
       setupModal.classList.remove('hidden');
       currentIsPlaying = false;
       updatePlayPauseUI(false);
+      scheduleNextPoll(2500);
       return;
     }
 
@@ -524,6 +526,7 @@ async function updateCurrentlyPlaying() {
       albumPlaceholder.classList.remove('hidden');
       currentIsPlaying = false;
       updatePlayPauseUI(false);
+      scheduleNextPoll(2000);
       return;
     }
 
@@ -564,9 +567,17 @@ async function updateCurrentlyPlaying() {
     }
 
     updatePlayPauseUI(isPlaying);
+    scheduleNextPoll(isPlaying ? 1000 : 2000);
   } catch (err) {
     console.error('Error actualizando canción:', err);
+    scheduleNextPoll(2500);
   }
+}
+
+// Adaptativo de polling de red para menor consumo de recursos
+function scheduleNextPoll(delayMs) {
+  clearTimeout(pollingInterval);
+  pollingInterval = setTimeout(updateCurrentlyPlaying, delayMs);
 }
 
 // Event Listeners de Autenticación
@@ -597,9 +608,8 @@ async function init() {
     updateCurrentlyPlaying();
   } else {
     setupModal.classList.remove('hidden');
+    scheduleNextPoll(2500);
   }
-
-  pollingInterval = setInterval(updateCurrentlyPlaying, 1000);
 }
 
 init();

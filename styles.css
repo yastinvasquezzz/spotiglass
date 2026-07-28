@@ -60,6 +60,8 @@ html, body {
   position: relative;
   overflow: hidden !important;
   -webkit-app-region: drag;
+  transform: translateZ(0);
+  will-change: transform, border-color, box-shadow;
   transition: border-color 0.4s ease, box-shadow 0.4s ease, background 0.4s ease, border-radius 0.3s ease;
 }
 
@@ -163,13 +165,15 @@ html, body {
   margin-left: 36px;
   margin-right: 45px;
   filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.5));
+  transform: translateZ(0);
+  will-change: opacity, transform, filter;
   transition: opacity 0.3s ease, transform 0.3s ease, filter 0.3s ease;
 }
 
 .playing #duck-lottie {
   opacity: 1;
   filter: drop-shadow(0 0 16px var(--spotify-green-glow)) drop-shadow(0 4px 12px rgba(0, 0, 0, 0.7));
-  transform: scale(1.06);
+  transform: scale(1.06) translateZ(0);
 }
 
 .widget-container.docked-taskbar #duck-lottie {
@@ -221,6 +225,8 @@ html, body {
   background: radial-gradient(circle at 30% 50%, var(--spotify-green-glow) 0%, rgba(0, 242, 254, 0.15) 50%, transparent 80%);
   opacity: 0;
   pointer-events: none;
+  transform: translateZ(0);
+  will-change: opacity, transform;
   transition: opacity 0.6s ease, background 0.6s ease;
   z-index: 0;
   overflow: hidden !important;
@@ -232,9 +238,9 @@ html, body {
 }
 
 @keyframes ambientRotate {
-  0% { transform: rotate(0deg) scale(1); }
-  50% { transform: rotate(180deg) scale(1.15); }
-  100% { transform: rotate(360deg) scale(1); }
+  0% { transform: rotate(0deg) scale(1) translateZ(0); }
+  50% { transform: rotate(180deg) scale(1.15) translateZ(0); }
+  100% { transform: rotate(360deg) scale(1) translateZ(0); }
 }
 
 .wave-emitter {
@@ -257,7 +263,7 @@ html, body {
   border-radius: 50%;
   border: 2px solid var(--spotify-green);
   opacity: 0;
-  transform: scale(0.5);
+  transform: scale(0.5) translateZ(0);
   pointer-events: none;
   transition: border-color 0.4s ease;
 }
@@ -278,7 +284,7 @@ html, body {
 
 @keyframes shockwavePulse {
   0% {
-    transform: scale(0.4);
+    transform: scale(0.4) translateZ(0);
     opacity: 0.95;
     border-color: var(--spotify-green);
     box-shadow: 0 0 15px var(--spotify-green-glow);
@@ -289,7 +295,7 @@ html, body {
     box-shadow: 0 0 30px var(--spotify-cyan);
   }
   100% {
-    transform: scale(3.5);
+    transform: scale(3.5) translateZ(0);
     opacity: 0;
     border-color: transparent;
   }
@@ -425,6 +431,7 @@ html, body {
   border-radius: 16px;
   overflow: hidden;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+  transform: translateZ(0);
   transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 
@@ -434,9 +441,9 @@ html, body {
 }
 
 @keyframes beatPulse {
-  0% { transform: scale(1); }
-  50% { transform: scale(1.05); }
-  100% { transform: scale(1.01); }
+  0% { transform: scale(1) translateZ(0); }
+  50% { transform: scale(1.05) translateZ(0); }
+  100% { transform: scale(1.01) translateZ(0); }
 }
 
 .album-art {
@@ -591,7 +598,7 @@ html, body {
 @keyframes smoothFadeShift {
   0% {
     opacity: 0;
-    transform: translateY(6px) scale(0.96);
+    transform: translateY(6px) scale(0.96) translateZ(0);
     filter: blur(6px) drop-shadow(0 0 15px var(--spotify-cyan));
   }
   40% {
@@ -600,7 +607,7 @@ html, body {
   }
   100% {
     opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: translateY(0) scale(1) translateZ(0);
     filter: blur(0px) drop-shadow(0 0 10px var(--spotify-green-glow));
   }
 }
@@ -684,7 +691,7 @@ html, body {
 
 .search-results-list {
   flex: 1;
-  overflow-y.auto;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 4px;

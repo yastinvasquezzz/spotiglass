@@ -1,10 +1,14 @@
 const http = require('http');
+const https = require('https');
 const url = require('url');
 const crypto = require('crypto');
 const axios = require('axios');
 const { BrowserWindow } = require('electron');
 
 const DEFAULT_CLIENT_ID = 'e01e9424647c4d07a529d0238887ef1c';
+
+// Socket Keep-Alive Agent para reutilización de conexiones de red de alta velocidad y menor consumo de RAM
+const keepAliveHttpsAgent = new https.Agent({ keepAlive: true, maxSockets: 10, timeout: 5000 });
 
 class SpotifyAuth {
   constructor(store) {
@@ -139,7 +143,8 @@ class SpotifyAuth {
       autoHideMenuBar: true,
       webPreferences: {
         nodeIntegration: false,
-        contextIsolation: true
+        contextIsolation: true,
+        spellcheck: false
       }
     });
 
@@ -164,9 +169,8 @@ class SpotifyAuth {
     params.append('code_verifier', this.codeVerifier);
 
     const response = await axios.post('https://accounts.spotify.com/api/token', params.toString(), {
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded'
-      }
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      httpsAgent: keepAliveHttpsAgent
     });
 
     const { access_token, refresh_token, expires_in } = response.data;
@@ -195,9 +199,8 @@ class SpotifyAuth {
 
     try {
       const response = await axios.post('https://accounts.spotify.com/api/token', params.toString(), {
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded'
-        }
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        httpsAgent: keepAliveHttpsAgent
       });
 
       const { access_token, expires_in, refresh_token: newRefreshToken } = response.data;
@@ -237,11 +240,13 @@ class SpotifyAuth {
       const token = await this.getValidAccessToken();
       if (currentlyPlaying) {
         await axios.put('https://api.spotify.com/v1/me/player/pause', {}, {
-          headers: { 'Authorization': `Bearer ${token}` }
+          headers: { 'Authorization': `Bearer ${token}` },
+          httpsAgent: keepAliveHttpsAgent
         });
       } else {
         await axios.put('https://api.spotify.com/v1/me/player/play', {}, {
-          headers: { 'Authorization': `Bearer ${token}` }
+          headers: { 'Authorization': `Bearer ${token}` },
+          httpsAgent: keepAliveHttpsAgent
         });
       }
       return true;
@@ -256,7 +261,8 @@ class SpotifyAuth {
     try {
       const token = await this.getValidAccessToken();
       const response = await axios.get(`https://api.spotify.com/v1/audio-features/${trackId}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'Authorization': `Bearer ${token}` },
+        httpsAgent: keepAliveHttpsAgent
       });
       return {
         tempo: response.data.tempo || 120,
@@ -273,9 +279,8 @@ class SpotifyAuth {
     try {
       const token = await this.getValidAccessToken();
       const response = await axios.get('https://api.spotify.com/v1/me/player/currently-playing', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+        headers: { 'Authorization': `Bearer ${token}` },
+        httpsAgent: keepAliveHttpsAgent
       });
 
       if (response.status === 204 || !response.data || !response.data.item) {
@@ -319,7 +324,8 @@ class SpotifyAuth {
     try {
       const token = await this.getValidAccessToken();
       const response = await axios.get(`https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=5`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'Authorization': `Bearer ${token}` },
+        httpsAgent: keepAliveHttpsAgent
       });
 
       const tracks = response.data.tracks.items.map(item => ({
@@ -342,7 +348,8 @@ class SpotifyAuth {
       await axios.put('https://api.spotify.com/v1/me/player/play', {
         uris: [uri]
       }, {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'Authorization': `Bearer ${token}` },
+        httpsAgent: keepAliveHttpsAgent
       });
       return true;
     } catch (error) {
@@ -354,7 +361,8 @@ class SpotifyAuth {
     try {
       const token = await this.getValidAccessToken();
       await axios.post('https://api.spotify.com/v1/me/player/next', {}, {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'Authorization': `Bearer ${token}` },
+        httpsAgent: keepAliveHttpsAgent
       });
       return true;
     } catch (error) {
@@ -366,7 +374,8 @@ class SpotifyAuth {
     try {
       const token = await this.getValidAccessToken();
       await axios.post('https://api.spotify.com/v1/me/player/previous', {}, {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'Authorization': `Bearer ${token}` },
+        httpsAgent: keepAliveHttpsAgent
       });
       return true;
     } catch (error) {

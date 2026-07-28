@@ -4,7 +4,11 @@ const exec = require('child_process').exec;
 const Store = require('electron-store');
 const SpotifyAuth = require('./auth');
 
-// Single Instance Lock: Garantiza que NUNCA se pueda abrir más de 1 instancia de SpotiGlass
+// Optimizaciones de Memoria RAM para Chromium / Electron
+app.commandLine.appendSwitch('disable-http-cache');
+app.commandLine.appendSwitch('disable-gpu-shader-disk-cache');
+
+// Single Instance Lock
 const gotTheLock = app.requestSingleInstanceLock();
 
 if (!gotTheLock) {
@@ -27,6 +31,7 @@ let isMovingLock = false;
 let userIntentionalMinimize = false;
 let isLyricsModeActive = false;
 let isFullscreenDetected = false;
+let fsCheckTimeout = null;
 
 function createWindow() {
   const appIconPath = path.join(__dirname, 'icon.png');
@@ -50,7 +55,8 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
-      backgroundThrottling: false
+      backgroundThrottling: false,
+      spellcheck: false
     }
   });
 
@@ -124,8 +130,16 @@ function createWindow() {
     mainWindow = null;
   });
 
-  // Detector Ultra-Rápido de Pantalla Completa (F11, Juegos, YouTube Fullscreen, etc.)
-  setInterval(checkFullscreenMode, 1000);
+  // Detector Optimizado de Pantalla Completa
+  scheduleFullscreenCheck();
+}
+
+function scheduleFullscreenCheck() {
+  clearTimeout(fsCheckTimeout);
+  fsCheckTimeout = setTimeout(() => {
+    checkFullscreenMode();
+    scheduleFullscreenCheck();
+  }, 1200);
 }
 
 function checkFullscreenMode() {
@@ -269,13 +283,19 @@ function undockFromTaskbar() {
 }
 
 app.whenReady().then(() => {
-  try {
-    app.setLoginItemSettings({
-      openAtLogin: true,
-      openAsHidden: false,
-      path: app.getPath('exe')
-    });
-  } catch (e) {}
+  if (app.isPackaged) {
+    try {
+      app.setLoginItemSettings({
+        openAtLogin: true,
+        openAsHidden: false,
+        path: app.getPath('exe')
+      });
+    } catch (e) {}
+  } else {
+    try {
+      app.setLoginItemSettings({ openAtLogin: false });
+    } catch (e) {}
+  }
 
   createWindow();
   createSystemTray();
